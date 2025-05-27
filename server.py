@@ -5,10 +5,19 @@ from urllib.parse import quote_plus, urlencode
 from authlib.integrations.flask_client import OAuth
 from dotenv import find_dotenv, load_dotenv
 from flask import Flask, redirect, render_template, session, url_for
+from functools import wraps
 
 ENV_FILE = find_dotenv()
 if ENV_FILE:
     load_dotenv(ENV_FILE)
+
+def requires_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if "user" not in session:
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated
 
 app = Flask(__name__)
 app.secret_key = env.get("APP_SECRET_KEY")
@@ -50,7 +59,13 @@ def logout():
             },
             quote_via=quote_plus,
         )
-    ) 
+    )
+
+@app.route("/protected")
+@requires_auth
+def protected():
+    user = session["user"]
+    return render_template("protected.html", user=user)
 
 @app.route("/")
 def home():
